@@ -1,0 +1,10 @@
+{
+    "authors": [
+        "karita"
+    ],
+    "copyright": "Copyright © 2021, karita",
+    "description": "RE2 for D",
+    "license": "BSD3",
+    "name": "re2d",
+    "libs": ["re2", "c++"]
+}

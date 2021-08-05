@@ -67,6 +67,43 @@ extern (C++, class) struct RE2 {
   ~this();
   @disable this(this);
 
+  // Returns whether RE2 was created properly.
+  bool ok() const { return error_code() == ErrorCode.NoError; }
+
+  // The string specification for this RE2.  E.g.
+  //   RE2 re("ab*c?d+");
+  //   re.pattern();    // "ab*c?d+"
+  const(char)[] pattern() const { return pattern_.as_array(); }
+
+  // If RE2 could not be created properly, returns an error string.
+  // Else returns the empty string.
+  const(char)[] error() const { return error_.as_array(); }
+
+  // If RE2 could not be created properly, returns an error code.
+  // Else returns RE2::NoError (== 0).
+  ErrorCode error_code() const { return error_code_; }
+
+  // If RE2 could not be created properly, returns the offending
+  // portion of the regexp.
+  const(char)[] error_arg() const { return error_arg_.as_array(); }
+
+  // Returns the program size, a very approximate measure of a regexp's "cost".
+  // Larger numbers are more expensive than smaller numbers.
+  int ProgramSize() const;
+  int ReverseProgramSize() const;
+
+  // TODO(karita): Support these funcs if stdcpp.vector is ready.
+  // // If histogram is not null, outputs the program fanout
+  // // as a histogram bucketed by powers of 2.
+  // // Returns the number of the largest non-empty bucket.
+  // int ProgramFanout(std::vector<int>* histogram) const;
+  // int ReverseProgramFanout(std::vector<int>* histogram) const;
+
+  // Returns the underlying Regexp; not for general use.
+  // Returns entire_regexp_ so that callers don't need
+  // to know about prefix_ and prefix_foldcase_.
+  const(Regexp)* regexp() const { return entire_regexp_; }
+
   /***** The array-based matching interface ******/
 
   // The functions here have names ending in 'N' and are used to implement
@@ -313,10 +350,26 @@ unittest {
 unittest {
   auto text = StringPiece("hello");
   auto pattern = RE2("h.*o");
+  assert(pattern.ok);
+  assert(pattern.pattern == "h.*o");
+  assert(pattern.ProgramSize == 14);
+  assert(pattern.ReverseProgramSize == 14);
   assert(RE2.FullMatchN(text, pattern, null, 0));
 
   auto pattern2 = RE2("e");
   assert(!RE2.FullMatchN(text, pattern2, null, 0));
+}
+
+/// Test RE2 errors.
+unittest {
+  RE2.Options opt;
+  opt.log_errors = false;
+  StringPiece s = `(\d`;
+  auto re = RE2(s, opt);
+  assert(!re.ok);
+  assert(re.error == `missing ): (\d`);
+  assert(re.error_code == RE2.ErrorCode.ErrorMissingParen);
+  assert(re.error_arg == `(\d`);
 }
 
 /// Test FullMatchN with args.

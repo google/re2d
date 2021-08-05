@@ -15,4 +15,7 @@ int main() {
   if (RE2::FullMatch("ルビー:1234", "([^:]+):(\\d+)", &s, &i)) {
     std::cout << "Match: s=" << s << ", i=" << i << std::endl;
   }
+  auto re = RE2("h.*o");
+  std::cout << "ProgramSize:" << re.ProgramSize() << std::endl;
+  std::cout << "ReverseProgramSize:" << re.ReverseProgramSize() << std::endl;
 }

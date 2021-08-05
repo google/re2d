@@ -16,7 +16,6 @@ extern (C++, class) struct Regexp;
 // concurrent use by multiple threads.
 extern (C++, class) struct RE2 {
  public:
-  @nogc nothrow pure:
 
   enum ErrorCode {
     NoError = 0,
@@ -53,44 +52,64 @@ extern (C++, class) struct RE2 {
     Quiet // do not log about regexp parse errors
   };
 
-  this(const(char)* pattern);
-  this(const ref basic_string!char pattern);
-  this(const ref StringPiece pattern);
-  this(const ref StringPiece pattern, const ref Options options);
+  this(const(char)* pattern) @nogc nothrow pure;
+  this(const ref basic_string!char pattern) @nogc nothrow pure;
+  this(const ref StringPiece pattern) @nogc nothrow pure;
+  this(const ref StringPiece pattern, const ref Options options) @nogc nothrow pure;
 
   extern(D)
-  this(string s) {
+  this(string s) @nogc nothrow pure {
     const StringPiece sp = s;
     this(sp);
   }
 
-  ~this();
+  ~this() @nogc nothrow pure;
   @disable this(this);
 
   // Returns whether RE2 was created properly.
-  bool ok() const { return error_code() == ErrorCode.NoError; }
+  bool ok() const @nogc nothrow pure { return error_code() == ErrorCode.NoError; }
 
   // The string specification for this RE2.  E.g.
   //   RE2 re("ab*c?d+");
   //   re.pattern();    // "ab*c?d+"
-  const(char)[] pattern() const { return pattern_.as_array(); }
+  const(char)[] pattern() const @nogc nothrow pure { return pattern_.as_array(); }
 
   // If RE2 could not be created properly, returns an error string.
   // Else returns the empty string.
-  const(char)[] error() const { return error_.as_array(); }
+  const(char)[] error() const @nogc nothrow pure { return error_.as_array(); }
 
   // If RE2 could not be created properly, returns an error code.
   // Else returns RE2::NoError (== 0).
-  ErrorCode error_code() const { return error_code_; }
+  ErrorCode error_code() const @nogc nothrow pure { return error_code_; }
 
   // If RE2 could not be created properly, returns the offending
   // portion of the regexp.
-  const(char)[] error_arg() const { return error_arg_.as_array(); }
+  const(char)[] error_arg() const @nogc nothrow pure { return error_arg_.as_array(); }
+
+  /// Test RE2 errors.
+  version (re2d_test) @nogc nothrow pure unittest {
+    RE2.Options opt;
+    opt.log_errors = false;
+    StringPiece s = `(\d`;
+    auto re = RE2(s, opt);
+    assert(!re.ok);
+    assert(re.error == `missing ): (\d`);
+    assert(re.error_code == RE2.ErrorCode.ErrorMissingParen);
+    assert(re.error_arg == `(\d`);
+  }
 
   // Returns the program size, a very approximate measure of a regexp's "cost".
   // Larger numbers are more expensive than smaller numbers.
-  int ProgramSize() const;
-  int ReverseProgramSize() const;
+  int ProgramSize() const @nogc nothrow pure;
+  int ReverseProgramSize() const @nogc nothrow pure;
+
+  version (re2d_test) @nogc nothrow pure unittest {
+    RE2 pattern = "h.*o";
+    assert(pattern.ok);
+    assert(pattern.pattern == "h.*o");
+    assert(pattern.ProgramSize == 14);
+    assert(pattern.ReverseProgramSize == 14);
+  }
 
   // TODO(karita): Support these funcs if stdcpp.vector is ready.
   // // If histogram is not null, outputs the program fanout
@@ -102,7 +121,12 @@ extern (C++, class) struct RE2 {
   // Returns the underlying Regexp; not for general use.
   // Returns entire_regexp_ so that callers don't need
   // to know about prefix_ and prefix_foldcase_.
-  const(Regexp)* regexp() const { return entire_regexp_; }
+  const(Regexp)* regexp() const @nogc nothrow pure { return entire_regexp_; }
+
+  version (re2d_test) @nogc nothrow pure unittest {
+    RE2 pattern = "h.*o";
+    assert(pattern.regexp);
+  }
 
   /***** The array-based matching interface ******/
 
@@ -111,13 +135,13 @@ extern (C++, class) struct RE2 {
   // useful to invoke them directly, but the syntax is awkward, so the 'N'-less
   // versions should be preferred.
   static bool FullMatchN(const ref StringPiece text, const ref RE2 re,
-                         const(Arg*)* args, int n);
+                         const(Arg*)* args, int n) @nogc nothrow pure;
   static bool PartialMatchN(const ref StringPiece text, const ref RE2 re,
-                            const(Arg*)* args, int n);
+                            const(Arg*)* args, int n) @nogc nothrow pure;
   static bool ConsumeN(StringPiece* input, const ref RE2 re,
-                       const(Arg*)* args, int n);
+                       const(Arg*)* args, int n) @nogc nothrow pure;
   static bool FindAndConsumeN(StringPiece* input, const ref RE2 re,
-                              const(Arg*)* args, int n);
+                              const(Arg*)* args, int n) @nogc nothrow pure;
 
   /// Converts variadic arguments into Args[].
   extern (D)
@@ -183,6 +207,130 @@ extern (C++, class) struct RE2 {
   static bool FindAndConsume(R, A...)(StringPiece* input, const auto ref R re, A a) {
     return Apply!FindAndConsumeN(input, re, a);
   }
+
+  // Replace the first match of "re" in "str" with "rewrite".
+  // Within "rewrite", backslash-escaped digits (\1 to \9) can be
+  // used to insert text matching corresponding parenthesized group
+  // from the pattern.  \0 in "rewrite" refers to the entire matching
+  // text.
+  // Returns true if the pattern matches and a replacement occurs,
+  // false otherwise.
+  static bool Replace(basic_string!(char)* str,
+                      const ref RE2 re,
+                      const ref StringPiece rewrite) @nogc nothrow pure;
+  ///
+  version (re2d_test) unittest {
+    basic_string!char s = "yabba dabba doo";
+    RE2 re = "b+";
+    StringPiece rewrite = "d";
+    assert(RE2.Replace(&s, re, rewrite));
+    assert(s.as_array == "yada dabba doo");
+  }
+
+  // Like Replace(), except replaces successive non-overlapping occurrences
+  // of the pattern in the string with the rewrite.
+  // Returns the number of replacements made.
+  static int GlobalReplace(basic_string!char* str,
+                           const ref RE2 re,
+                           const ref StringPiece rewrite);
+  ///
+  version (re2d_test) unittest {
+    basic_string!char s = "yabba dabba doo";
+    RE2 re = "b+";
+    StringPiece rewrite = "d";
+    assert(RE2.GlobalReplace(&s, re, rewrite) == 2);
+    assert(s.as_array == "yada dada doo");
+  }
+
+  // Like Replace, except that if the pattern matches, "rewrite"
+  // is copied into "out" with substitutions.  The non-matching
+  // portions of "text" are ignored.
+  //
+  // Returns true iff a match occurred and the extraction happened
+  // successfully;  if no match occurs, the string is left unaffected.
+  //
+  // REQUIRES: "text" must not alias any part of "*out".
+  static bool Extract(const ref StringPiece text,
+                      const ref RE2 re,
+                      const ref StringPiece rewrite,
+                      basic_string!char* outStr);
+  ///
+  version (re2d_test) unittest {
+    StringPiece text = "yabba dabba doo";
+    basic_string!char os = "";
+    RE2 re = "b+";
+    StringPiece rewrite = "d";
+    assert(RE2.Extract(text, re, rewrite, &os));
+    assert(os.toString == "d");
+  }
+
+  /// Escapes all potentially meaningful regexp characters in
+  /// 'unquoted'.  The returned string, used as a regular expression,
+  /// will match exactly the original string.
+  static basic_string!char QuoteMeta(const ref StringPiece unquoted);
+  ///
+  version (re2d_test) unittest {
+    StringPiece s = "1.5-2.0?";
+    assert(QuoteMeta(s).as_array == `1\.5\-2\.0\?`);
+  }
+
+  /// Computes range for any strings matching regexp. The min and max can in
+  /// some cases be arbitrarily precise, so the caller gets to specify the
+  /// maximum desired length of string returned.
+  ///
+  /// Assuming PossibleMatchRange(&min, &max, N) returns successfully, any
+  /// string s that is an anchored match for this regexp satisfies
+  ///   min <= s && s <= max.
+  ///
+  /// Note that PossibleMatchRange() will only consider the first copy of an
+  /// infinitely repeated element (i.e., any regexp element followed by a '*' or
+  /// '+' operator). Regexps with "{N}" constructions are not affected, as those
+  /// do not compile down to infinite repetitions.
+  ///
+  /// Returns true on success, false on error.
+  bool PossibleMatchRange(basic_string!char* min, basic_string!char* max,
+                          int maxlen) const;
+  /// From re2/testing/possible_match_test.cc
+  version (re2d_test) unittest {
+    RE2 re = "(abc)+";
+    basic_string!char min = "";
+    basic_string!char max = "";
+    assert(re.PossibleMatchRange(&min, &max, 5));
+    assert(min.toString == "abc");
+    assert(max.toString == "abcac");
+  }
+
+  // TODO(karita): Generic matching interface
+
+  /// Type of match.
+  enum Anchor {
+    UNANCHORED,         // No anchoring
+    ANCHOR_START,       // Anchor at start only
+    ANCHOR_BOTH         // Anchor at start and end
+  };
+
+  /// Return the number of capturing subpatterns, or -1 if the
+  /// regexp wasn't valid on construction.  The overall match ($0)
+  /// does not count: if the regexp is "(a)(b)", returns 2.
+  int NumberOfCapturingGroups() const { return num_captures_; }
+  ///
+  version (re2d_test) unittest {
+    RE2 re = "(a)(b)";
+    assert(re.NumberOfCapturingGroups == 2);
+  }
+
+  // TODO(karita): wrap this func when std::map is ready.
+  // Return a map from names to capturing indices.
+  // The map records the index of the leftmost group
+  // with the given name.
+  // Only valid until the re is deleted.
+  // const std::map<std::string, int>& NamedCapturingGroups() const;
+
+  // TODO(karita): wrap this func when std::map is ready.
+  // Return a map from capturing indices to names.
+  // The map has no entries for unnamed groups.
+  // Only valid until the re is deleted.
+  // const std::map<int, std::string>& CapturingGroupNames() const;
 
   /// We convert user-passed pointers into special Arg objects.
   extern (C++, class) struct Arg {
@@ -369,26 +517,10 @@ unittest {
 unittest {
   auto text = StringPiece("hello");
   auto pattern = RE2("h.*o");
-  assert(pattern.ok);
-  assert(pattern.pattern == "h.*o");
-  assert(pattern.ProgramSize == 14);
-  assert(pattern.ReverseProgramSize == 14);
   assert(RE2.FullMatchN(text, pattern, null, 0));
 
   auto pattern2 = RE2("e");
   assert(!RE2.FullMatchN(text, pattern2, null, 0));
-}
-
-/// Test RE2 errors.
-unittest {
-  RE2.Options opt;
-  opt.log_errors = false;
-  StringPiece s = `(\d`;
-  auto re = RE2(s, opt);
-  assert(!re.ok);
-  assert(re.error == `missing ): (\d`);
-  assert(re.error_code == RE2.ErrorCode.ErrorMissingParen);
-  assert(re.error_arg == `(\d`);
 }
 
 /// Test FullMatchN with args.

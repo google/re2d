@@ -11,6 +11,7 @@ extern (C++, class) struct StringPiece {
   alias size_type = size_t;
   // static __gshared const size_type npos = cast(size_t) -1;
 
+  @safe
   this(const(char)* str, size_type len) {
     data_ = str;
     size_ = len;
@@ -20,7 +21,7 @@ extern (C++, class) struct StringPiece {
     this(str, strlen(str));
   }
 
-  extern (D)
+  extern (D) @safe
   this(string str) {
     this(&str[0], str.length);
   }
@@ -35,7 +36,8 @@ extern (C++, class) struct StringPiece {
   size_type size_ = 0;
 }
 
-unittest {
+version (re2d_test) @nogc nothrow pure unittest {
   StringPiece s = "hello";
   assert(s.toString == "hello");
+  assert(StringPiece(s.data_).toString == "hello");
 }

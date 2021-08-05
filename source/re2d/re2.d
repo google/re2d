@@ -234,7 +234,8 @@ extern (C++, class) struct RE2 {
   once_flag group_names_once_;
 }
 
-@nogc nothrow pure:
+
+version (re2d_test) @nogc nothrow pure:
 
 version (OSX) version (AArch64)
 unittest {

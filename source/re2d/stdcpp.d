@@ -38,6 +38,7 @@ else {
   public import core.stdcpp.utility : pair;
 }
 
+extern (C++)
 struct less(T) {
   bool opCall()(const auto ref T x, const auto ref T y) const {
     return x < y;

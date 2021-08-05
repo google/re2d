@@ -1,10 +1,23 @@
 {
     "authors": [
-        "karita"
+        "Shigeki Karita"
     ],
-    "copyright": "Copyright © 2021, karita",
+    "copyright": "Copyright © 2021, Shigeki Karita, RE2 authors",
     "description": "RE2 for D",
-    "license": "BSD3",
+    "license": "BSD-3-Clause",
     "name": "re2d",
-    "libs": ["re2", "c++"]
+    "buildTypes": {
+        "unittest": {
+            "libs": ["re2", "c++"],
+            "buildOptions": ["unittests", "debugMode", "debugInfo"],
+            "versions": ["re2d_test"],
+            "dflags": ["-preview=dip1008"]
+        },
+        "unittest-cov": {
+            "libs": ["re2", "c++"],
+            "buildOptions": ["unittests", "coverage", "debugMode", "debugInfo"],
+            "versions": ["re2d_test"],
+            "dflags": ["-preview=dip1008"]
+        }
+    }
 }

@@ -1,7 +1,7 @@
-module re2;
+module re2d;
 
-public import re2.stringpiece;
-public import re2.re2;
+public import re2d.stringpiece;
+public import re2d.re2;
 
 @nogc nothrow pure unittest {
   int i;

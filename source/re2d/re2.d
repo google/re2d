@@ -1,10 +1,10 @@
-module re2.re2;
+module re2d.re2;
 
 import core.stdc.config : cpp_long, cpp_longlong, cpp_ulong, cpp_ulonglong;
 import core.stdcpp.string : basic_string;
 
-import re2.stdcpp : once_flag, map;
-import re2.stringpiece : StringPiece;
+import re2d.stdcpp : once_flag, map;
+import re2d.stringpiece : StringPiece;
 
 enum bool canParse3ary(T) =
   is(T == void) ||

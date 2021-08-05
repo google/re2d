@@ -1,4 +1,5 @@
-module re2.stdcpp;
+/// C++ std lib declerations referrenced by RE2.
+module re2d.stdcpp;
 
 import core.stdc.config : cpp_ulong;
 import core.stdcpp.allocator : allocator;
@@ -14,7 +15,6 @@ struct less(T) {
 
 extern (C++, class) struct map(Key, T, Compare, Allocator);
 alias map(Key, T) = map!(Key, T, less!Key, allocator!(pair!(Key, T)));
-
 
 struct once_flag {
  private:

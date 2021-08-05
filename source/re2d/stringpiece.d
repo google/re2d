@@ -1,4 +1,4 @@
-module re2.stringpiece;
+module re2d.stringpiece;
 
 import core.stdc.string : strlen;
 

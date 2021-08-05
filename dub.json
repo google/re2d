@@ -11,13 +11,13 @@
             "libs": ["re2", "c++"],
             "buildOptions": ["unittests", "debugMode", "debugInfo"],
             "versions": ["re2d_test"],
-            "dflags": ["-preview=dip1008"]
+            "dflags": ["-preview=dip1000"]
         },
         "unittest-cov": {
             "libs": ["re2", "c++"],
             "buildOptions": ["unittests", "coverage", "debugMode", "debugInfo"],
             "versions": ["re2d_test"],
-            "dflags": ["-preview=dip1008"]
+            "dflags": ["-preview=dip1000"]
         }
     }
 }

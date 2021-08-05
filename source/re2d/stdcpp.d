@@ -6,10 +6,11 @@ import core.stdcpp.allocator : allocator;
 import core.stdcpp.xutility : StdNamespace;
 
 extern (C++, (StdNamespace)):
-@nogc:
+@nogc package:
 
 version (DigitalMars) {
   // TODO(karita): fix dmd to include core.stdcpp.utility.
+  // https://issues.dlang.org/show_bug.cgi?id=22179
   struct pair(T1, T2) {
     ///
     alias first_type = T1;
@@ -38,9 +39,8 @@ else {
   public import core.stdcpp.utility : pair;
 }
 
-extern (C++)
 struct less(T) {
-  bool opCall()(const auto ref T x, const auto ref T y) const {
+  bool opCall()(const auto ref return scope T x, const auto ref return scope T y) const {
     return x < y;
   }
 }

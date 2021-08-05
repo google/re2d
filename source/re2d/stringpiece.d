@@ -9,7 +9,7 @@ extern (C++, class) struct StringPiece {
   @nogc nothrow pure:
   alias const_pointer = const(char)*;
   alias size_type = size_t;
-  // static __gshared const size_type npos = cast(size_t) -1;
+  enum npos = cast(size_t) -1;
 
   @safe
   this(const(char)* str, size_type len) {

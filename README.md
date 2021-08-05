@@ -32,3 +32,5 @@ import re2d;
 ```
 
 You need to install RE2 library in `$LIBRARY_PATH` and `$LD_LIBRARY_PATH` before building.
+
+See [re2.d unittests](source/re2d/re2.d) for more runnable examples.

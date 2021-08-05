@@ -5,6 +5,7 @@ import core.stdcpp.string : basic_string;
 
 import re2d.stdcpp : once_flag, map;
 import re2d.stringpiece : StringPiece;
+static import re2d.internal;
 
 enum bool canParse3ary(T) =
   is(T == void) ||
@@ -42,12 +43,6 @@ unittest {
 
 extern (C++, "re2"):
 
-extern (C++, "re2_internal")
-bool Parse(T)(const(char)* str, size_t n, T* dest);
-
-extern (C++, "re2_internal")
-bool Parse(T)(const(char)* str, size_t n, T* dest, int radix);
-
 extern (C++, class) struct Prog;
 extern (C++, class) struct Regexp;
 
@@ -81,76 +76,38 @@ extern (C++, class) struct RE2 {
     ErrorPatternTooLarge     // pattern too large (compile failed)
   }
 
-  extern (C++, class) struct Arg {
-   public:
-    alias Parser = bool function(const(char)* str, size_t n, const(void*) arg);
-
-    this(typeof(null)) {}
-
-    this(T)(T* ptr) {
-      arg_ = ptr;
-      static if (canParse3ary!T) {
-        parser_ = &(DoParse3ary!T);
-      }
-      else if (canParse4ary!T) {
-        parser_ = &(DoParse4ary!T);
-      }
-      else {
-        assert(false, "Cannot parse T.");
-      }
-    }
-
-    static bool DoParse3ary(T)(const(char)* str, size_t n, const(void)* dest) {
-      return Parse(str, n, cast(T*) dest);
-    }
-
-    static bool DoParse4ary(T)(const(char)* str, size_t n, const(void)* dest) {
-      return Parse(str, n, cast(T*) dest, 10);
-    }
-
-   private:
-    static bool DoNothing(const(char)* str, size_t n, const(void*) arg) {
-      return true;
-    }
-
-    void* arg_ = null;
-    Parser parser_ = &DoNothing;
-  }
-
-  extern (C++, class) struct Options {
-   public:
-    // For now, make the default budget something close to Code Search.
-    // __gshared static const int kDefaultMaxMem = 8<<20;
-
-    enum Encoding {
-      EncodingUTF8 = 1,
-      EncodingLatin1
-    }
-
-   private:
-    Encoding encoding_;
-    bool posix_syntax_;
-    bool longest_match_;
-    bool log_errors_;
-    long max_mem_;
-    bool literal_;
-    bool never_nl_;
-    bool dot_nl_;
-    bool never_capture_;
-    bool case_sensitive_;
-    bool perl_classes_;
-    bool word_boundary_;
-    bool one_line_;
-  }
+  // Predefined common options.
+  // If you need more complicated things, instantiate
+  // an Option class, possibly passing one of these to
+  // the Option constructor, change the settings, and pass that
+  // Option class to the RE2 constructor.
+  enum CannedOptions {
+    DefaultOptions = 0,
+    Latin1, // treat input as Latin-1 (default UTF-8)
+    POSIX, // POSIX syntax, leftmost-longest match
+    Quiet // do not log about regexp parse errors
+  };
 
   this(const(char)* pattern);
   this(const ref basic_string!char pattern);
   this(const ref StringPiece pattern);
+  this(const ref StringPiece pattern, const ref Options options);
 
   extern(D)
   this(string s) {
     const StringPiece sp = s;
     this(sp);
+  }
+  extern(D)
+  this(string s, Options op) {
+    const StringPiece sp = s;
+    this(sp, op);
+  }
+  extern(D)
+  this(string s, CannedOptions copt) {
+    const StringPiece sp = s;
+    const Options op = copt;
+    this(sp, op);
   }
   ~this();
   @disable this(this);
@@ -171,21 +128,31 @@ extern (C++, class) struct RE2 {
                               const(Arg*)* args, int n);
 
   extern (D)
-  static bool Apply(alias F, S, R, A...)(S s, R rs, A a) if (!is(R == RE2)) {
+  static bool Apply(alias F, S, A...)(S s, string rs, A a) {
     auto re = RE2(rs);
     return Apply!F(s, re, a);
   }
 
   extern (D)
-  static bool Apply(alias F, S, A...)(S s, const ref RE2 re, A a) {
-    StringPiece sp = s;
-    Arg[A.length] args;
-    Arg*[A.length] ptrs;
-    static foreach (i, x; a) {
-      args[i] = Arg(a[i]);
-      ptrs[i] = &args[i];
+  static bool Apply(alias F, SP, A...)(SP s, const ref RE2 re, A a) {
+    static if (is(SP : string)) {
+      StringPiece sp = s;
     }
-    return F(sp, re, &ptrs[0], cast(int) A.length);
+    else {
+      auto sp = s;
+    }
+    static if (A.length == 0) {
+      return F(sp, re, null, 0);
+    }
+    else {
+      Arg[A.length] args;
+      Arg*[A.length] ptrs;
+      static foreach (i; 0 .. A.length) {
+        args[i] = Arg(a[i]);
+        ptrs[i] = &args[i];
+      }
+      return F(sp, re, &ptrs[0], cast(int) A.length);
+    }
   }
 
   extern (D)
@@ -199,13 +166,153 @@ extern (C++, class) struct RE2 {
   }
 
   extern (D)
-  static bool Consume(S, R, A...)(S s, const auto ref R re, A a) {
+  static bool Consume(R, A...)(StringPiece* s, const auto ref R re, A a) {
     return Apply!ConsumeN(s, re, a);
   }
 
   extern (D)
-  static bool FindAndConsume(S, R, A...)(S s, const auto ref R re, A a) {
-    return Apply!FindAndConsume(s, re, a);
+  static bool FindAndConsume(R, A...)(StringPiece* s, const auto ref R re, A a) {
+    return Apply!FindAndConsumeN(s, re, a);
+  }
+
+  extern (C++, class) struct Arg {
+   public:
+    @nogc nothrow pure:
+    alias Parser = bool function(const(char)* str, size_t n, const(void*) arg);
+
+    this(typeof(null)) {}
+
+    this(Arg a) {
+      arg_ = a.arg_;
+      parser_ = a.parser_;
+    }
+
+    this(T)(T* ptr, Parser parser) {
+      arg_ = ptr;
+      parser_ = parser;
+    }
+
+    this(T)(T* ptr) {
+      arg_ = ptr;
+      static if (canParse3ary!T) {
+        parser_ = &(DoParse3ary!T);
+      }
+      else static if (canParse4ary!T) {
+        parser_ = &(DoParse4ary!T);
+      }
+      else {
+        assert(false, "Cannot parse T.");
+      }
+    }
+
+    static bool DoParse3ary(T)(const(char)* str, size_t n, const(void)* dest) {
+      return re2d.internal.Parse(str, n, cast(T*) dest);
+    }
+
+    static bool DoParse4ary(T)(const(char)* str, size_t n, const(void)* dest) {
+      return re2d.internal.Parse(str, n, cast(T*) dest, 10);
+    }
+
+   private:
+    static bool DoNothing(const(char)* str, size_t n, const(void*) arg) {
+      return true;
+    }
+
+    void* arg_ = null;
+    Parser parser_ = &DoNothing;
+  }
+
+  extern (C++, class) struct Options {
+    @nogc nothrow pure:
+   public:
+    // The options are (defaults in parentheses):
+    //
+    //   utf8             (true)  text and pattern are UTF-8; otherwise Latin-1
+    //   posix_syntax     (false) restrict regexps to POSIX egrep syntax
+    //   longest_match    (false) search for longest match, not first match
+    //   log_errors       (true)  log syntax and execution errors to ERROR
+    //   max_mem          (see below)  approx. max memory footprint of RE2
+    //   literal          (false) interpret string as literal, not regexp
+    //   never_nl         (false) never match \n, even if it is in regexp
+    //   dot_nl           (false) dot matches everything including new line
+    //   never_capture    (false) parse all parens as non-capturing
+    //   case_sensitive   (true)  match is case-sensitive (regexp can override
+    //                              with (?i) unless in posix_syntax mode)
+    //
+    // The following options are only consulted when posix_syntax == true.
+    // When posix_syntax == false, these features are always enabled and
+    // cannot be turned off; to perform multi-line matching in that case,
+    // begin the regexp with (?m).
+    //   perl_classes     (false) allow Perl's \d \s \w \D \S \W
+    //   word_boundary    (false) allow Perl's \b \B (word boundary and not)
+    //   one_line         (false) ^ and $ only match beginning and end of text
+    //
+    // The max_mem option controls how much memory can be used
+    // to hold the compiled form of the regexp (the Prog) and
+    // its cached DFA graphs.  Code Search placed limits on the number
+    // of Prog instructions and DFA states: 10,000 for both.
+    // In RE2, those limits would translate to about 240 KB per Prog
+    // and perhaps 2.5 MB per DFA (DFA state sizes vary by regexp; RE2 does a
+    // better job of keeping them small than Code Search did).
+    // Each RE2 has two Progs (one forward, one reverse), and each Prog
+    // can have two DFAs (one first match, one longest match).
+    // That makes 4 DFAs:
+    //
+    //   forward, first-match    - used for UNANCHORED or ANCHOR_START searches
+    //                               if opt.longest_match() == false
+    //   forward, longest-match  - used for all ANCHOR_BOTH searches,
+    //                               and the other two kinds if
+    //                               opt.longest_match() == true
+    //   reverse, first-match    - never used
+    //   reverse, longest-match  - used as second phase for unanchored searches
+    //
+    // The RE2 memory budget is statically divided between the two
+    // Progs and then the DFAs: two thirds to the forward Prog
+    // and one third to the reverse Prog.  The forward Prog gives half
+    // of what it has left over to each of its DFAs.  The reverse Prog
+    // gives it all to its longest-match DFA.
+    //
+    // Once a DFA fills its budget, it flushes its cache and starts over.
+    // If this happens too often, RE2 falls back on the NFA implementation.
+
+    // For now, make the default budget something close to Code Search.
+    enum int kDefaultMaxMem = 8<<20;
+
+    enum Encoding {
+      EncodingUTF8 = 1,
+      EncodingLatin1
+    }
+
+    this(CannedOptions);
+    int ParseFlags() const;
+
+    Encoding encoding = Encoding.EncodingUTF8;
+    bool posix_syntax = false;
+    bool longest_match = false;
+    bool log_errors = true;
+    long max_mem = kDefaultMaxMem;
+    bool literal = false;
+    bool never_nl = false;
+    bool dot_nl = false;
+    bool never_capture = false;
+    bool case_sensitive = true;
+    bool perl_classes = false;
+    bool word_boundary = false;
+    bool one_line = false;
+  }
+
+  /// Returns the options set in the constructor.
+  ref const(Options) options() return const { return options_; }
+
+  // Argument converters; see below.
+  static Arg CRadix(T)(T* ptr) {
+    return Arg(ptr, &(re2d.internal.ParseVoidPtr!(T, 0)));
+  }
+  static Arg Hex(T)(T* ptr) {
+    return Arg(ptr, &(re2d.internal.ParseVoidPtr!(T, 16)));
+  }
+  static Arg Octal(T)(T* ptr) {
+    return Arg(ptr, &(re2d.internal.ParseVoidPtr!(T, 8)));
   }
 
  private:
@@ -237,6 +344,7 @@ extern (C++, class) struct RE2 {
 
 version (re2d_test) @nogc nothrow pure:
 
+/// Test data size in RE2.
 version (OSX) version (AArch64)
 unittest {
   assert(RE2.ErrorCode.sizeof == 4);
@@ -245,32 +353,17 @@ unittest {
   assert(RE2.sizeof == 200);
 }
 
+/// Test FullMatchN without args.
 unittest {
   auto text = StringPiece("hello");
   auto pattern = RE2("h.*o");
   assert(RE2.FullMatchN(text, pattern, null, 0));
+
+  auto pattern2 = RE2("e");
+  assert(!RE2.FullMatchN(text, pattern2, null, 0));
 }
 
-unittest {
-  auto text = StringPiece("hello");
-  auto pattern = RE2("e");
-  assert(!RE2.FullMatchN(text, pattern, null, 0));
-}
-
-unittest {
-  int i;
-  int j;
-  auto ai = RE2.Arg(&i);
-  auto aj = RE2.Arg(&j);
-  const(RE2.Arg*)[2] args = [&ai, &aj];
-
-  const input = StringPiece("123:1234");
-  const pattern = RE2("(\\d+):(\\d+)");
-  assert(RE2.FullMatchN(input, pattern, args.ptr, 2));
-  assert(i == 123);
-  assert(j == 1234);
-}
-
+/// Test FullMatchN with args.
 unittest {
   int i;
   StringPiece s;
@@ -285,18 +378,110 @@ unittest {
   assert(i == 1234);
 }
 
+/// Test FullMatch examples.
 unittest {
-  int i;
-  StringPiece s;
-  assert(RE2.FullMatch("ruby:1234", "(\\w+):(\\d+)", &s, &i));
-  assert(s.toString == "ruby");
-  assert(i == 1234);
-}
+  assert(RE2.FullMatch("hello", "h.*o"));
+  assert(!RE2.FullMatch("hello", "e"));
 
-unittest {
+  // Default UTF-8 support enabled.
   int i;
   StringPiece s;
   assert(RE2.FullMatch("ルビー:1234", "([^:]+):(\\d+)", &s, &i));
   assert(s.toString == "ルビー");
   assert(i == 1234);
+
+  // Example: extracts "ruby" into "s" and 1234 into "i"
+  // RE2 also supports Latin-1 input mode.
+  assert(RE2.FullMatch("ruby:1234", RE2("(\\w+):(\\d+)", RE2.CannedOptions.Latin1), &s, &i));
+  assert(s.toString == "ruby");
+  assert(i == 1234);
+
+  // Example: fails because string cannot be stored in integer
+  assert(!RE2.FullMatch("ruby", "(.*)", &i));
+
+  // Example: fails because there aren't enough sub-patterns
+  assert(!RE2.FullMatch("ruby:1234", "\\w+:\\d+", &s));
+
+  // Example: does not try to extract any extra sub-patterns
+  assert(RE2.FullMatch("ruby:1234", "(\\w+):(\\d+)", &s));
+
+  // Example: does not try to extract into NULL
+  assert(RE2.FullMatch("ruby:1234", "(\\w+):(\\d+)", null, &i));
+
+  // Example: integer overflow causes failure
+  assert(!RE2.FullMatch("ruby:1234567891234", "\\w+:(\\d+)", &i));
+  // but float can store it.
+  float f;
+  assert(RE2.FullMatch("ruby:1234567891234", "\\w+:(\\d+)", &f));
 }
+
+/// Test partial matches.
+unittest {
+  assert(RE2.PartialMatch("hello", "ell"));
+  assert(!RE2.PartialMatch("hello", "all"));
+
+  int number;
+  assert(RE2.PartialMatch("x*100 + 20", `(\d+)`, &number));
+  assert(number == 100);
+
+  StringPiece s;
+  assert(RE2.PartialMatch("x*100 + 20", `(\w+)`, &s));
+  assert(s.toString == "x");
+
+}
+
+/// Test scanning text icrementally by Consume.
+unittest {
+  StringPiece input = `foo = 1
+bar = 2
+`;
+  StringPiece var;
+  int value;
+  RE2 re = `(\w+) = (\d)\n`;
+  assert(RE2.Consume(&input, re, &var, &value));
+  assert(var.toString == "foo");
+  assert(value == 1);
+  assert(RE2.Consume(&input, re, &var, &value));
+  assert(var.toString == "bar");
+  assert(value == 2);
+  assert(!RE2.Consume(&input, re, &var, &value));
+}
+
+/// Test scanning text icrementally with anchor match by FindAndConsume.
+unittest {
+  StringPiece input = "(foo bar)";
+  RE2 re = `(\w+)`;
+  StringPiece word;
+  assert(RE2.FindAndConsume(&input, re, &word));
+  assert(word.toString == "foo");
+  assert(RE2.FindAndConsume(&input, re, &word));
+  assert(word.toString == "bar");
+  assert(!RE2.FindAndConsume(&input, re, &word));
+}
+
+/// Test using variable number of arguments.
+unittest {
+  StringPiece s;
+  int i;
+  auto as = RE2.Arg(&s);
+  auto ai = RE2.Arg(&i);
+  RE2.Arg*[2] args;
+  args[0] = &as;
+  args[1] = &ai;
+  RE2.FullMatch("ruby:1234", `(\w+):(\d+)`, *args[0], *args[1]);
+  assert(s.toString == "ruby");
+  assert(i == 1234);
+}
+
+/// Test parsing hex/octal/c-radix numbers.
+unittest {
+  int a, b, c, d;
+  assert(RE2.FullMatch("100 40 0100 0x40", "(.*) (.*) (.*) (.*)",
+                       RE2.Octal(&a), RE2.Hex(&b), RE2.CRadix(&c), RE2.CRadix(&d)));
+  assert(a == 8 * 8);
+  assert(b == 4 * 16);
+  assert(c == 8 * 8);
+  assert(c == 0x40);
+}
+
+// TODO(karita): Test multi thread usage.

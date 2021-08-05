@@ -119,14 +119,16 @@ extern (C++, class) struct RE2 {
   static bool FindAndConsumeN(StringPiece* input, const ref RE2 re,
                               const(Arg*)* args, int n);
 
+  /// Converts variadic arguments into Args[].
   extern (D)
-  static bool Apply(alias F, S, A...)(S s, string rs, A a) {
+  private static bool Apply(alias F, S, A...)(S s, string rs, A a) {
     auto re = RE2(rs);
     return Apply!F(s, re, a);
   }
 
+  /// ditto.
   extern (D)
-  static bool Apply(alias F, SP, A...)(SP s, const ref RE2 re, A a) {
+  private static bool Apply(alias F, SP, A...)(SP s, const ref RE2 re, A a) {
     static if (is(SP : string)) {
       StringPiece sp = s;
     }
@@ -147,26 +149,42 @@ extern (C++, class) struct RE2 {
     }
   }
 
+  // In order to allow FullMatch() et al. to be called with a varying number
+  // of arguments of varying types, we use two layers of variadic templates.
+  // The first layer constructs the temporary Arg objects. The second layer
+  // (above) constructs the array of pointers to the temporary Arg objects.
+
+  /***** The useful part: the matching interface *****/
+
+  /// Matches "text" against "re".  If pointer arguments are
+  /// supplied, copies matched sub-patterns into them.
   extern (D)
-  static bool FullMatch(S, R, A...)(S s, const auto ref R re, A a) {
-    return Apply!FullMatchN(s, re, a);
+  static bool FullMatch(S, R, A...)(S text, const auto ref R re, A a) {
+    return Apply!FullMatchN(text, re, a);
   }
 
+  /// Like FullMatch(), except that "re" is allowed to match a substring
+  /// of "text".
   extern (D)
-  static bool PartialMatch(S, R, A...)(S s, const auto ref R re, A a) {
-    return Apply!PartialMatchN(s, re, a);
+  static bool PartialMatch(S, R, A...)(S text, const auto ref R re, A a) {
+    return Apply!PartialMatchN(text, re, a);
   }
 
+  // Like FullMatch() and PartialMatch(), except that "re" has to match
+  // a prefix of the text, and "input" is advanced past the matched text.
   extern (D)
-  static bool Consume(R, A...)(StringPiece* s, const auto ref R re, A a) {
-    return Apply!ConsumeN(s, re, a);
+  static bool Consume(R, A...)(StringPiece* input, const auto ref R re, A a) {
+    return Apply!ConsumeN(input, re, a);
   }
 
+  // Like Consume(), but does not anchor the match at the beginning of
+  // the text.  That is, "re" need not start its match at the beginning of "input".
   extern (D)
-  static bool FindAndConsume(R, A...)(StringPiece* s, const auto ref R re, A a) {
-    return Apply!FindAndConsumeN(s, re, a);
+  static bool FindAndConsume(R, A...)(StringPiece* input, const auto ref R re, A a) {
+    return Apply!FindAndConsumeN(input, re, a);
   }
 
+  /// We convert user-passed pointers into special Arg objects.
   extern (C++, class) struct Arg {
    public:
     @nogc nothrow pure:
@@ -215,6 +233,7 @@ extern (C++, class) struct RE2 {
     Parser parser_ = &DoNothing;
   }
 
+  /// Constructor options
   extern (C++, class) struct Options {
     @nogc nothrow pure:
    public:

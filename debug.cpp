@@ -7,7 +7,6 @@ struct A {
 int main() {
   int i;
   std::string s;
-  auto p = RE2("e");
   std::cout << "size: " << sizeof(re2::StringPiece) << std::endl;
   std::cout << "size: " << sizeof(RE2::ErrorCode) << std::endl;
   std::cout << "size: " << sizeof(RE2::Options) << std::endl;

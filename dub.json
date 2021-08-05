@@ -8,13 +8,13 @@
     "name": "re2d",
     "buildTypes": {
         "unittest": {
-            "libs": ["re2", "c++"],
+            "libs": ["re2", "stdc++"],
             "buildOptions": ["unittests", "debugMode", "debugInfo"],
             "versions": ["re2d_test"],
             "dflags": ["-preview=dip1000"]
         },
         "unittest-cov": {
-            "libs": ["re2", "c++"],
+            "libs": ["re2", "stdc++"],
             "buildOptions": ["unittests", "coverage", "debugMode", "debugInfo"],
             "versions": ["re2d_test"],
             "dflags": ["-preview=dip1000"]

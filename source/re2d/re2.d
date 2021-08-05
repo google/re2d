@@ -98,17 +98,7 @@ extern (C++, class) struct RE2 {
     const StringPiece sp = s;
     this(sp);
   }
-  extern(D)
-  this(string s, Options op) {
-    const StringPiece sp = s;
-    this(sp, op);
-  }
-  extern(D)
-  this(string s, CannedOptions copt) {
-    const StringPiece sp = s;
-    const Options op = copt;
-    this(sp, op);
-  }
+
   ~this();
   @disable this(this);
 
@@ -392,7 +382,10 @@ unittest {
 
   // Example: extracts "ruby" into "s" and 1234 into "i"
   // RE2 also supports Latin-1 input mode.
-  assert(RE2.FullMatch("ruby:1234", RE2("(\\w+):(\\d+)", RE2.CannedOptions.Latin1), &s, &i));
+  StringPiece ps = "(\\w+):(\\d+)";
+  RE2.Options opt = RE2.CannedOptions.Latin1;
+  auto re = RE2(ps, opt);
+  assert(RE2.FullMatch("ruby:1234", re, &s, &i));
   assert(s.toString == "ruby");
   assert(i == 1234);
 
@@ -427,10 +420,9 @@ unittest {
   StringPiece s;
   assert(RE2.PartialMatch("x*100 + 20", `(\w+)`, &s));
   assert(s.toString == "x");
-
 }
 
-/// Test scanning text icrementally by Consume.
+/// Test scanning text incrementally by Consume.
 unittest {
   StringPiece input = `foo = 1
 bar = 2
@@ -447,7 +439,7 @@ bar = 2
   assert(!RE2.Consume(&input, re, &var, &value));
 }
 
-/// Test scanning text icrementally with anchor match by FindAndConsume.
+/// Test scanning text incrementally with anchor match by FindAndConsume.
 unittest {
   StringPiece input = "(foo bar)";
   RE2 re = `(\w+)`;

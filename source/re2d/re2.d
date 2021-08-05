@@ -1,45 +1,10 @@
 module re2d.re2;
 
-import core.stdc.config : cpp_long, cpp_longlong, cpp_ulong, cpp_ulonglong;
 import core.stdcpp.string : basic_string;
 
 import re2d.stdcpp : once_flag, map;
 import re2d.stringpiece : StringPiece;
 static import re2d.internal;
-
-enum bool canParse3ary(T) =
-  is(T == void) ||
-  is(T == basic_string!char) ||
-  is(T == StringPiece) ||
-  is(T == char) ||
-  is(T == byte) ||
-  is(T == ubyte) ||
-  is(T == float) ||
-  is(T == double);
-
-unittest {
-  assert(canParse3ary!float);
-  assert(canParse3ary!StringPiece);
-  assert(!canParse3ary!int);
-}
-
-enum bool canParse4ary(T) =
-  is(T == long) ||
-  is(T == cpp_long) ||
-  is(T == ulong) ||
-  is(T == cpp_ulong) ||
-  is(T == short) ||
-  is(T == ushort) ||
-  is(T == int) ||
-  is(T == uint) ||
-  is(T == cpp_longlong) ||
-  is(T == cpp_ulonglong);
-
-unittest {
-  assert(!canParse4ary!float);
-  assert(!canParse4ary!StringPiece);
-  assert(canParse4ary!int);
-}
 
 extern (C++, "re2"):
 
@@ -182,17 +147,21 @@ extern (C++, class) struct RE2 {
       parser_ = parser;
     }
 
-    this(T)(T* ptr) {
-      arg_ = ptr;
-      static if (canParse3ary!T) {
-        parser_ = &(DoParse3ary!T);
-      }
-      else static if (canParse4ary!T) {
-        parser_ = &(DoParse4ary!T);
-      }
-      else {
-        assert(false, "Cannot parse T.");
-      }
+    this(T)(T* ptr) if (re2d.internal.canParse3ary!T) {
+      this(ptr, &(DoParse3ary!T));
+    }
+
+    this(T)(T* ptr) if (re2d.internal.canParse4ary!T) {
+      this(ptr, &(DoParse4ary!T));
+    }
+
+    bool Parse(const(char)* str, size_t n) const {
+      return parser_(str, n, arg_);
+    }
+
+   private:
+    static bool DoNothing(const(char)* str, size_t n, const(void*) arg) {
+      return true;
     }
 
     static bool DoParse3ary(T)(const(char)* str, size_t n, const(void)* dest) {
@@ -203,10 +172,7 @@ extern (C++, class) struct RE2 {
       return re2d.internal.Parse(str, n, cast(T*) dest, 10);
     }
 
-   private:
-    static bool DoNothing(const(char)* str, size_t n, const(void*) arg) {
-      return true;
-    }
+    // TODO(karita): DoParseFrom.
 
     void* arg_ = null;
     Parser parser_ = &DoNothing;

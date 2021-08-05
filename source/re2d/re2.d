@@ -64,6 +64,7 @@ extern (C++, class) struct RE2 {
   }
 
   ~this() @nogc nothrow pure;
+  @disable this();
   @disable this(this);
 
   // Returns whether RE2 was created properly.
@@ -194,31 +195,33 @@ extern (C++, class) struct RE2 {
     return Apply!PartialMatchN(text, re, a);
   }
 
-  // Like FullMatch() and PartialMatch(), except that "re" has to match
-  // a prefix of the text, and "input" is advanced past the matched text.
+  /// Like FullMatch() and PartialMatch(), except that "re" has to match
+  /// a prefix of the text, and "input" is advanced past the matched text.
   extern (D)
   static bool Consume(R, A...)(StringPiece* input, const auto ref R re, A a) {
     return Apply!ConsumeN(input, re, a);
   }
 
-  // Like Consume(), but does not anchor the match at the beginning of
-  // the text.  That is, "re" need not start its match at the beginning of "input".
+  /// Like Consume(), but does not anchor the match at the beginning of
+  /// the text.  That is, "re" need not start its match at the beginning of "input".
   extern (D)
   static bool FindAndConsume(R, A...)(StringPiece* input, const auto ref R re, A a) {
     return Apply!FindAndConsumeN(input, re, a);
   }
 
-  // Replace the first match of "re" in "str" with "rewrite".
-  // Within "rewrite", backslash-escaped digits (\1 to \9) can be
-  // used to insert text matching corresponding parenthesized group
-  // from the pattern.  \0 in "rewrite" refers to the entire matching
-  // text.
-  // Returns true if the pattern matches and a replacement occurs,
-  // false otherwise.
+  /// Replace the first match of "re" in "str" with "rewrite".
+  /// Within "rewrite", backslash-escaped digits (\1 to \9) can be
+  /// used to insert text matching corresponding parenthesized group
+  /// from the pattern.  \0 in "rewrite" refers to the entire matching
+  /// text.
+  ///
+  /// Returns true if the pattern matches and a replacement occurs,
+  /// false otherwise.
   static bool Replace(basic_string!(char)* str,
                       const ref RE2 re,
                       const ref StringPiece rewrite) @nogc nothrow pure;
   ///
+  @nogc
   version (re2d_test) unittest {
     basic_string!char s = "yabba dabba doo";
     RE2 re = "b+";
@@ -227,13 +230,15 @@ extern (C++, class) struct RE2 {
     assert(s.as_array == "yada dabba doo");
   }
 
-  // Like Replace(), except replaces successive non-overlapping occurrences
-  // of the pattern in the string with the rewrite.
-  // Returns the number of replacements made.
+  /// Like Replace(), except replaces successive non-overlapping occurrences
+  /// of the pattern in the string with the rewrite.
+  /// Returns the number of replacements made.
+  @nogc nothrow pure
   static int GlobalReplace(basic_string!char* str,
                            const ref RE2 re,
                            const ref StringPiece rewrite);
   ///
+  @nogc
   version (re2d_test) unittest {
     basic_string!char s = "yabba dabba doo";
     RE2 re = "b+";
@@ -242,14 +247,15 @@ extern (C++, class) struct RE2 {
     assert(s.as_array == "yada dada doo");
   }
 
-  // Like Replace, except that if the pattern matches, "rewrite"
-  // is copied into "out" with substitutions.  The non-matching
-  // portions of "text" are ignored.
-  //
-  // Returns true iff a match occurred and the extraction happened
-  // successfully;  if no match occurs, the string is left unaffected.
-  //
-  // REQUIRES: "text" must not alias any part of "*out".
+  /// Like Replace, except that if the pattern matches, "rewrite"
+  /// is copied into "out" with substitutions.  The non-matching
+  /// portions of "text" are ignored.
+  ///
+  /// Returns true iff a match occurred and the extraction happened
+  /// successfully;  if no match occurs, the string is left unaffected.
+  ///
+  /// REQUIRES: "text" must not alias any part of "*out".
+  @nogc nothrow pure
   static bool Extract(const ref StringPiece text,
                       const ref RE2 re,
                       const ref StringPiece rewrite,
@@ -267,19 +273,20 @@ extern (C++, class) struct RE2 {
   /// Escapes all potentially meaningful regexp characters in
   /// 'unquoted'.  The returned string, used as a regular expression,
   /// will match exactly the original string.
-  // static basic_string!char QuoteMeta(const ref StringPiece unquoted);
+  /// static basic_string!char QuoteMeta(const ref StringPiece unquoted);
   version (linux) {
     // TODO(karita): Fix this mangle name in Linux (OK in OSX).
+    @nogc nothrow pure
     pragma(mangle, "_ZN3re23RE29QuoteMetaB5cxx11ERKNS_11StringPieceE")
     static basic_string!char QuoteMeta(const ref StringPiece unquoted);
   } else {
+    @nogc nothrow pure
     static basic_string!char QuoteMeta(const ref StringPiece unquoted);
   }
   ///
   version (re2d_test) unittest {
     StringPiece s = "1.5-2.0?";
-    auto quoted = QuoteMeta(s);
-    // assert(QuoteMeta(s).as_array == `1\.5\-2\.0\?`);
+    assert(QuoteMeta(s).as_array == `1\.5\-2\.0\?`);
   }
 
   /// Computes range for any strings matching regexp. The min and max can in
@@ -296,9 +303,11 @@ extern (C++, class) struct RE2 {
   /// do not compile down to infinite repetitions.
   ///
   /// Returns true on success, false on error.
+  @nogc nothrow pure
   bool PossibleMatchRange(basic_string!char* min, basic_string!char* max,
                           int maxlen) const;
   /// From re2/testing/possible_match_test.cc
+  @nogc
   version (re2d_test) unittest {
     RE2 re = "(abc)+";
     basic_string!char min = "";
@@ -308,7 +317,7 @@ extern (C++, class) struct RE2 {
     assert(max.toString == "abcac");
   }
 
-  // TODO(karita): Generic matching interface
+  // Generic matching interface
 
   /// Type of match.
   enum Anchor {
@@ -320,8 +329,10 @@ extern (C++, class) struct RE2 {
   /// Return the number of capturing subpatterns, or -1 if the
   /// regexp wasn't valid on construction.  The overall match ($0)
   /// does not count: if the regexp is "(a)(b)", returns 2.
+  @nogc nothrow pure
   int NumberOfCapturingGroups() const { return num_captures_; }
   ///
+  @nogc nothrow pure
   version (re2d_test) unittest {
     RE2 re = "(a)(b)";
     assert(re.NumberOfCapturingGroups == 2);
@@ -339,6 +350,102 @@ extern (C++, class) struct RE2 {
   // The map has no entries for unnamed groups.
   // Only valid until the re is deleted.
   // const std::map<int, std::string>& CapturingGroupNames() const;
+
+  /// General matching routine.
+  /// Match against text starting at offset startpos
+  /// and stopping the search at offset endpos.
+  /// Returns true if match found, false if not.
+  /// On a successful match, fills in submatch[] (up to nsubmatch entries)
+  /// with information about submatches.
+  /// Caveat: submatch[] may be clobbered even on match failure.
+  ///
+  /// Don't ask for more match information than you will use:
+  /// runs much faster with nsubmatch == 1 than nsubmatch > 1, and
+  /// runs even faster if nsubmatch == 0.
+  /// Doesn't make sense to use nsubmatch > 1 + NumberOfCapturingGroups(),
+  /// but will be handled correctly.
+  ///
+  /// Passing text == StringPiece(null, 0) will be handled like any other
+  /// empty string, but note that on return, it will not be possible to tell
+  /// whether submatch i matched the empty string or did not match:
+  /// either way, submatch[i].data() == null.
+  @nogc nothrow pure
+  bool Match(const ref StringPiece text,
+             size_t startpos,
+             size_t endpos,
+             Anchor re_anchor,
+             StringPiece* submatch,
+             int nsubmatch) const;
+  ///
+  @nogc nothrow pure
+  version (re2d_test) unittest {
+    enum int nsub = 4;
+    StringPiece[nsub] submatch;
+    StringPiece text = "barbazbla";
+    assert(RE2("(foo)|(bar)baz").Match(text, 0, text.size, Anchor.UNANCHORED,
+                                       submatch.ptr, nsub));
+    assert(submatch[0].toString == "barbaz");
+    assert(submatch[1].data is null);
+    assert(submatch[2].toString == "bar");
+    assert(submatch[3].data is null);
+  }
+
+  /// Check that the given rewrite string is suitable for use with this
+  /// regular expression.  It checks that:
+  ///   * The regular expression has enough parenthesized subexpressions
+  ///     to satisfy all of the \N tokens in rewrite
+  ///   * The rewrite string doesn't have any syntax errors.  E.g.,
+  ///     '\' followed by anything other than a digit or '\'.
+  /// A true return value guarantees that Replace() and Extract() won't
+  /// fail because of a bad rewrite string.
+  @nogc nothrow pure
+  bool CheckRewriteString(const ref StringPiece rewrite,
+                          basic_string!char* error) const;
+  ///
+  @nogc
+  version (re2d_test) unittest {
+    RE2 re = `a(b)c`;
+    basic_string!char e = "";
+    StringPiece r1 = "foo";
+    assert(re.CheckRewriteString(r1, &e));
+    assert(e.toString == "");
+    StringPiece r2 = `foo\`;
+    assert(!re.CheckRewriteString(r2, &e));
+    assert(e.toString != "");
+  }
+
+  /// Returns the maximum submatch needed for the rewrite to be done by
+  /// Replace(). E.g. if rewrite == "foo \\2,\\1", returns 2.
+  @nogc nothrow pure
+  static int MaxSubmatch(const ref StringPiece rewrite);
+  ///
+  @nogc nothrow pure
+  version (re2d_test) unittest {
+    StringPiece s = `foo \2, \1`;
+    assert(RE2("(\\w+)").MaxSubmatch(s) == 2);
+  }
+
+  // Append the "rewrite" string, with backslash subsitutions from "vec",
+  // to string "out".
+  // Returns true on success.  This method can fail because of a malformed
+  // rewrite string.  CheckRewriteString guarantees that the rewrite will
+  // be sucessful.
+  @nogc nothrow pure
+  bool Rewrite(basic_string!char* outStr,
+               const ref StringPiece rewrite,
+               const(StringPiece*) vec,
+               int veclen) const;
+  ///
+  @nogc
+  version (re2d_test) unittest {
+    basic_string!char os = "";
+    StringPiece rewrite = "\\0-NOSPAM";
+    StringPiece[2] vec;
+    vec[0] = StringPiece("the quick brown");
+    vec[1] = StringPiece("fox");
+    assert(RE2("\\w+").Rewrite(&os, rewrite, vec.ptr, vec.length));
+    assert(os.toString == "the quick brown-NOSPAM", os.toString);
+  }
 
   /// We convert user-passed pointers into special Arg objects.
   extern (C++, class) struct Arg {
@@ -470,7 +577,13 @@ extern (C++, class) struct RE2 {
   }
 
   /// Returns the options set in the constructor.
-  ref const(Options) options() return const { return options_; }
+  ref const(Options) options() return const @nogc nothrow pure { return options_; }
+  ///
+  version (re2d_test) @nogc nothrow pure unittest {
+    StringPiece s = "a+";
+    Options opt = CannedOptions.Latin1;
+    assert(RE2(s, opt).options.encoding == Options.Encoding.EncodingLatin1);
+  }
 
   // Argument converters; see below.
   static Arg CRadix(T)(T* ptr) {

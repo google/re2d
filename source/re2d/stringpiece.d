@@ -31,6 +31,11 @@ extern (C++, class) struct StringPiece {
     return data_[0 .. size_];
   }
 
+  alias toString this;
+
+  size_type size() const { return size_; }
+  const_pointer data() const { return data_; }
+
  private:
   const_pointer data_ = null;
   size_type size_ = 0;
@@ -38,6 +43,6 @@ extern (C++, class) struct StringPiece {
 
 version (re2d_test) @nogc nothrow pure unittest {
   StringPiece s = "hello";
-  assert(s.toString == "hello");
-  assert(StringPiece(s.data_).toString == "hello");
+  assert(s == "hello");
+  assert(StringPiece(s.data_) == "hello");
 }

@@ -236,6 +236,7 @@ extern (C++, class) struct RE2 {
 
 @nogc nothrow pure:
 
+version (OSX) version (AArch64)
 unittest {
   assert(RE2.ErrorCode.sizeof == 4);
   assert(RE2.Arg.sizeof == 16);

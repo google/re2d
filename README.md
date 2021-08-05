@@ -1,5 +1,8 @@
 # re2d
 
+[![linux](https://github.com/ShigekiKarita/re2d/actions/workflows/linux.yml/badge.svg)](https://github.com/ShigekiKarita/re2d/actions/workflows/linux.yml)
+[![codecov](https://codecov.io/gh/ShigekiKarita/re2d/branch/master/graph/badge.svg?token=3SFV852DK7)](https://codecov.io/gh/ShigekiKarita/re2d)
+
 D language binding of [RE2](https://github.com/google/re2) regex engine.
 
 LICENSE: same as RE2 (BSD 3-clause).

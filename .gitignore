@@ -3,8 +3,10 @@
 !*.cpp
 !*.d
 !*.md
+!*.yml
 !dub.json
 !.gitignore
+!LICENSE
 
 .dub
 docs.json

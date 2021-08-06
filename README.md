@@ -12,14 +12,14 @@ LICENSE: same as RE2 (BSD 3-clause).
 ## Usage
 
 ```d
-/* dub.json:
+/+ dub.json:
 {
   "dependencies": {
      "re2d": "*"
   },
   "libs": ["re2", "c++"]
 }
-*/
++/
 import re2d;
 
 @nogc nothrow pure unittest {

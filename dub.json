@@ -4,7 +4,7 @@
     ],
     "copyright": "Copyright © 2021, Shigeki Karita, RE2 authors",
     "description": "RE2 for D",
-    "license": "BSD-3-Clause",
+    "license": "Apache 2.0",
     "name": "re2d",
     "buildTypes": {
         "unittest": {

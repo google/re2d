@@ -1,6 +1,7 @@
 # re2d
 
 [![linux](https://github.com/google/re2d/actions/workflows/linux.yml/badge.svg)](https://github.com/google/re2d/actions/workflows/linux.yml)
+[![codecov](https://codecov.io/gh/google/re2d/branch/master/graph/badge.svg?token=N6WBFR15XQ)](https://codecov.io/gh/google/re2d)
 [![Dub version](https://img.shields.io/dub/v/re2d.svg)](https://code.dlang.org/packages/re2d)
 
 D language binding of [RE2](https://github.com/google/re2) regex engine.

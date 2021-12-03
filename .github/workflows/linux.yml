@@ -14,7 +14,12 @@
 
 name: linux
 
-on: [push]
+on:
+  push:
+  pull_request:
+  # Nightly builds
+  schedule:
+    - cron: '00 00 * * *'
 
 jobs:
   test:

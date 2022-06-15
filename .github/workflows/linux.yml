@@ -44,6 +44,7 @@ jobs:
       with:
         repository: google/re2
         path: re2
+        ref: '2022-06-01'
     - name: build-re2
       run: |
         cd re2

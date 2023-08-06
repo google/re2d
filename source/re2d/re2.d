@@ -86,10 +86,12 @@ extern (C++, class) struct RE2 {
   // The string specification for this RE2.  E.g.
   //   RE2 re("ab*c?d+");
   //   re.pattern();    // "ab*c?d+"
+  extern (D)
   const(char)[] pattern() const @nogc nothrow pure { return pattern_.as_array(); }
 
   // If RE2 could not be created properly, returns an error string.
   // Else returns the empty string.
+  extern (D)
   const(char)[] error() const @nogc nothrow pure { return error_.as_array(); }
 
   // If RE2 could not be created properly, returns an error code.
@@ -98,6 +100,7 @@ extern (C++, class) struct RE2 {
 
   // If RE2 could not be created properly, returns the offending
   // portion of the regexp.
+  extern (D)
   const(char)[] error_arg() const @nogc nothrow pure { return error_arg_.as_array(); }
 
   /// Test RE2 errors.
